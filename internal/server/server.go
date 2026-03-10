@@ -21,6 +21,7 @@ type Server struct{
 
 func NewServer(db *gorm.DB, cfg config.Config) *Server {
 	engine := gin.Default()
+	engine.LoadHTMLGlob("templates/*")
 	engine.Use(gin.Recovery())
 	return &Server{
 		engine: engine,
@@ -30,26 +31,37 @@ func NewServer(db *gorm.DB, cfg config.Config) *Server {
 }
 
 func (s *Server) RunServer() error {
-	AtheleteRepo := storage.NewAthleteRepo(s.db)
-	AtheleteService := service.NewAthleteService(AtheleteRepo)
+	AthleteRepo := storage.NewAthleteRepo(s.db)
+	AtheleteService := service.NewAthleteService(AthleteRepo)
 	AtheleteHandlers := handlers.NewAthleteHandler(AtheleteService)
 
-	v1 := s.engine.Group("v1")
+	CoachRepo := storage.NewCoachRepo(s.db)
+	CoachService := service.NewCoachService(CoachRepo)
+	CoachHandler := handlers.NewCoachHandler(CoachService)
 
-	athelete := v1.Group("athelete")
+	api := s.engine.Group("/api/v1")
+	web := s.engine.Group("/web")
+	{
+		web.GET("/coach/dashboard", CoachHandler.GetDashboardView)
+		web.POST("/coach/training", CoachHandler.CreateTrainingWebHandler)
+		web.GET("/coach/team", CoachHandler.GetTeamView)
+	}
+
+
+	athelete := api.Group("athelete")
 	{
 		athelete.GET("/schedule", AtheleteHandlers.GetScheduleHandler) 
 		athelete.GET("/progress", AtheleteHandlers.GetProgressHandler)
-		athelete.POST("/health-report", AtheleteHandlers.ReportHealtsHandler)
+		athelete.POST("/health-report", AtheleteHandlers.ReportHealthHandler)
 	}
 
-	coach := v1.Group("coach")
+	coach := api.Group("coach")
 	{
-		coach.POST("/training", ) // CreateTrainingHandler
-		coach.POST("/team/members", ) //AddMemberHandler
-		coach.DELETE("/team/members/:athlete_id", ) //DeleteMemberHandler
-		coach.PUT("/training/logs/:id", ) //UpdateTrainingLogs
-		coach.GET("/analytics", ) //GetAnalytics
+		coach.POST("/training", CoachHandler.CreateTrainingHandler) 
+		coach.POST("/team/members", CoachHandler.AddMemberHandler)
+		coach.DELETE("/team/members/:athlete_id", CoachHandler.DeleteMemberHandler)
+		coach.PUT("/training/logs/:id", CoachHandler.UpdateTrainingLogs)
+		coach.GET("/analytics", CoachHandler.GetAnalyticsHandler) 
 	}
 
 	newServ := http.Server{

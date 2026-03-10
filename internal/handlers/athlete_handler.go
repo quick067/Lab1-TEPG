@@ -9,6 +9,8 @@ import (
 
 type AthleteService interface {
 	GetSchedule(userID uint, startDate, endDate string) ([]models.TrainingScheduleItem, error)
+	GetProgress(userID uint) ([]models.TrainingProgressItem, error)
+	PostReport(userID uint, req models.CreateHealthReportRequest) error
 }
 
 type AthleteHandler struct {
@@ -36,9 +38,27 @@ func (ah *AthleteHandler) GetScheduleHandler(c *gin.Context) {
 }
 
 func (ah *AthleteHandler) GetProgressHandler(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{"todo": "todo"})
+	userID := uint(1)
+
+	progress, err := ah.service.GetProgress(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+    c.JSON(http.StatusOK, gin.H{"progress": progress})
 }
 
-func (ah *AthleteHandler) ReportHealtsHandler(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{"todo": "todo"})
+func (ah *AthleteHandler) ReportHealthHandler(c *gin.Context) {
+    userID := uint(1)
+
+	var req models.CreateHealthReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		return 
+	}
+	if err := ah.service.PostReport(userID, req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return 
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "health report created successfully"})
 }

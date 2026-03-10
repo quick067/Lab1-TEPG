@@ -16,9 +16,11 @@ func main(){
 	}
 
 	server := server.NewServer(db, *cfg)
-	go func(){
-		if err := server.RunServer(); err != nil {
-			log.Fatalf("Error running server: %v", err)
-		}
-	}()
+	if err := server.RunServer(); err != nil {
+		log.Fatalf("Error running server: %v", err)
+	}
 }
+
+
+//TODO::
+//Add view
