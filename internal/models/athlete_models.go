@@ -21,7 +21,7 @@ type TrainingScheduleItem struct {
 }
 
 type CreateHealthReportRequest struct {
-	Note string `json:"note"`
+	Note string `json:"note" binding:"required,min=2"`
 }
 
 type TrainingProgressItem struct {

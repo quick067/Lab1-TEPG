@@ -3,24 +3,19 @@ package models
 import "time"
 
 type CreateTrainingRequest struct {
-	Title           string    `json:"title"`
-	TrainingTypeId  uint      `json:"training_type_id"`
-	ScheduledAt     time.Time `json:"scheduled_at"`
-	PlannedDuration uint      `json:"planned_duration"`
-	Description     string    `json:"description"`
+	Title           string    `json:"title" binding:"required,min=3"`
+	TrainingTypeId  uint      `json:"training_type_id" binding:"required,gt=0"`
+	ScheduledAt     time.Time `json:"scheduled_at" binding:"required"`
+	PlannedDuration uint      `json:"planned_duration" binding:"required,gt=0"`
+	Description     string    `json:"description" binding:"omitempty,max=1000"`
 }
 
 type AddMemberRequest struct {
-	MemberID uint `json:"member_id"`
-}
-
-type UpdateTrainingLogRequest struct {
-	Status         Status `json:"status"`
-	ActualDuration uint   `json:"actual_duration"`
-	Comment        string `json:"comment"`
+	MemberID uint `json:"member_id" binding:"required,gt=0"`
 }
 
 type TrainingsAnalyticsItem struct {
+	ID              uint      `json:"id"`
 	Title           string    `json:"title"`
 	ScheduledAt     time.Time `json:"scheduled_at"`
 	PlannedDuration uint      `json:"planned_duration"`
@@ -35,4 +30,10 @@ type User struct {
 	Email     string `gorm:"column:email"`
 	Role      string `gorm:"column:role"`
 	IsActive  bool   `gorm:"column:is_active"`
+}
+
+type UpdateLogTrainingRequest struct {
+	ActualDuration uint   `json:"actual_duration" binding:"omitempty,gt=0"`
+	Comment        string `json:"comment" binding:"omitempty,max=1000"`
+	Status         string `json:"status" binding:"required,oneof=Done Missed"`
 }

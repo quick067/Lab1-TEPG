@@ -33,7 +33,7 @@ func NewServer(db *gorm.DB, cfg config.Config) *Server {
 func (s *Server) RunServer() error {
 	AthleteRepo := storage.NewAthleteRepo(s.db)
 	AtheleteService := service.NewAthleteService(AthleteRepo)
-	AtheleteHandlers := handlers.NewAthleteHandler(AtheleteService)
+	AthleteHandlers := handlers.NewAthleteHandler(AtheleteService)
 
 	CoachRepo := storage.NewCoachRepo(s.db)
 	CoachService := service.NewCoachService(CoachRepo)
@@ -43,16 +43,18 @@ func (s *Server) RunServer() error {
 	web := s.engine.Group("/web")
 	{
 		web.GET("/coach/dashboard", CoachHandler.GetDashboardView)
-		web.POST("/coach/training", CoachHandler.CreateTrainingWebHandler)
 		web.GET("/coach/team", CoachHandler.GetTeamView)
+		web.GET("/athlete/dashboard", AthleteHandlers.GetDashboardView)
+   		web.GET("/athlete/health", AthleteHandlers.GetHealthReportView)
+    	web.POST("/athlete/health", AthleteHandlers.CreateHealthReportWeb)
 	}
 
 
-	athelete := api.Group("athelete")
+	athlete := api.Group("athlete")
 	{
-		athelete.GET("/schedule", AtheleteHandlers.GetScheduleHandler) 
-		athelete.GET("/progress", AtheleteHandlers.GetProgressHandler)
-		athelete.POST("/health-report", AtheleteHandlers.ReportHealthHandler)
+		athlete.GET("/schedule", AthleteHandlers.GetScheduleHandler) 
+		athlete.GET("/progress", AthleteHandlers.GetProgressHandler)
+		athlete.POST("/health-report", AthleteHandlers.ReportHealthHandler)
 	}
 
 	coach := api.Group("coach")

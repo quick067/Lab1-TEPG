@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>[[ title ]]</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .hover-card:hover { transform: translateY(-5px); transition: 0.3s; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .transition-base { transition: 0.3s; }
+        .status-past { border-left: 4px solid #198754; } 
+        .status-future { border-left: 4px solid #0d6efd; }
+    </style>
+</head>
+<body class="bg-light">
+    <div id="app" class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <h1 class="text-primary fw-bold mb-0">[[ title ]] 🏆</h1>
+                <p class="text-muted mt-1">Керування розкладом команди</p>
+            </div>
+            <div>
+                <a href="/web/coach/team" class="btn btn-outline-primary me-2 fw-bold">👥 Моя команда</a>
+                <button class="btn btn-success fw-bold shadow-sm" @click="openModal">
+                    + Створити тренування
+                </button>
+            </div>
+        </div>
+
+        <div v-if="loading" class="text-center my-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-2">Завантажуємо дані команди...</p>
+        </div>
+
+        <div v-else>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm hover-card transition-base h-100 bg-dark text-white">
+                        <div class="card-body">
+                            <h6 class="text-uppercase mb-2 opacity-75">Всього створено</h6>
+                            <h2 class="display-5 fw-bold mb-0">[[ totalTrainings ]]</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm hover-card transition-base h-100 bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="text-uppercase mb-2 opacity-75">Вже проведено</h6>
+                            <h2 class="display-5 fw-bold mb-0">[[ pastTrainings ]]</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm hover-card transition-base h-100 bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="text-uppercase mb-2 opacity-75">Заплановано (Майбутні)</h6>
+                            <h2 class="display-5 fw-bold mb-0">[[ futureTrainings ]]</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold text-dark">📋 Історія та План тренувань команди</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Статус</th>
+                                        <th>Назва тренування</th>
+                                        <th>Дата та час</th>
+                                        <th>Тривалість (План / Факт)</th>
+                                        <th>Звіт / Коментар</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in trainingsList" :key="item.id" :class="isPast(item.scheduled_at) ? 'status-past' : 'status-future'">
+                                        <td class="ps-4">
+                                            <span v-if="isPast(item.scheduled_at)" class="badge bg-success">Виконано</span>
+                                            <span v-else class="badge bg-primary">Заплановано</span>
+                                        </td>
+                                        <td class="fw-bold">[[ item.title ]]</td>
+                                        <td>[[ formatDate(item.scheduled_at) ]]</td>
+                                        <td>
+                                            <span class="text-primary">[[ item.planned_duration ]] хв</span> 
+                                            <span v-if="isPast(item.scheduled_at)">
+                                                / <strong :class="item.actual_duration ? 'text-success' : 'text-danger'">
+                                                    [[ item.actual_duration || 0 ]] хв
+                                                </strong>
+                                            </span>
+                                        </td>
+                                        <td class="text-muted small">
+                                            <span v-if="item.comment">[[ item.comment ]]</span>
+                                            <span v-else-if="isPast(item.scheduled_at)" class="text-danger fst-italic">Очікує звіту тренера</span>
+                                            <span v-else>—</span>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="trainingsList.length === 0">
+                                        <td colspan="6" class="text-center text-muted py-4">Немає жодного тренування. Створіть перше!</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="createTrainingModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">Нове тренування</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="submitTraining">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Назва тренування</label>
+                                <input type="text" v-model="form.title" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Тип тренування</label>
+                                <select v-model="form.training_type_id" class="form-select" required>
+                                    <option disabled value="">Оберіть тип...</option>
+                                    <option value="1">Кардіо</option>
+                                    <option value="2">Силове</option>
+                                    <option value="3">Відновлення</option>
+                                    <option value="4">Тактика</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Дата та час</label>
+                                <input type="datetime-local" v-model="form.scheduled_at" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Запланована тривалість (хв)</label>
+                                <input type="number" v-model="form.planned_duration" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Опис / Коментар</label>
+                                <textarea v-model="form.description" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div v-if="formMessage" :class="['alert', formError ? 'alert-danger' : 'alert-success']">
+                                [[ formMessage ]]
+                            </div>
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-success fw-bold" :disabled="submitting">Зберегти тренування</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="logTrainingModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Результат тренування</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="submitLog">
+                            <h6 class="text-muted mb-4">Тренування: <strong class="text-dark">[[ logForm.title ]]</strong></h6>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Статус</label>
+                                <select v-model="logForm.status" class="form-select" required>
+                                    <option value="Done">✅ Виконано</option>
+                                    <option value="Missed">❌ Пропущено / Зірвано</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Фактична тривалість (хв)</label>
+                                <input type="number" v-model="logForm.actual_duration" class="form-control" placeholder="Наприклад: 90" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Коментар тренера</label>
+                                <textarea v-model="logForm.comment" class="form-control" rows="3" placeholder="Оцінка роботи команди..."></textarea>
+                            </div>
+
+                            <div v-if="logMessage" :class="['alert', logError ? 'alert-danger' : 'alert-success']">
+                                [[ logMessage ]]
+                            </div>
+
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-primary fw-bold" :disabled="submittingLog">Зберегти результат</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    title: 'Дашборд Тренера',
+                    loading: true,
+                    trainingsList: [],
+                    
+                    // Стан модалки створення
+                    bsModal: null,
+                    submitting: false,
+                    formMessage: '',
+                    formError: false,
+                    form: {
+                        title: '',
+                        training_type_id: '',
+                        scheduled_at: '',
+                        planned_duration: null,
+                        description: ''
+                    },
+
+                    // Стан модалки логування (результату)
+                    bsLogModal: null,
+                    submittingLog: false,
+                    logMessage: '',
+                    logError: false,
+                    logForm: {
+                        training_id: null,
+                        title: '',
+                        actual_duration: null,
+                        comment: '',
+                        status: 'Done'
+                    }
+                }
+            },
+            computed: {
+                totalTrainings() { return this.trainingsList.length; },
+                pastTrainings() { const now = new Date(); return this.trainingsList.filter(t => new Date(t.scheduled_at) < now).length; },
+                futureTrainings() { const now = new Date(); return this.trainingsList.filter(t => new Date(t.scheduled_at) >= now).length; }
+            },
+            methods: {
+                async fetchTrainings() {
+                    try {
+                        const res = await axios.get('/api/v1/coach/analytics');
+                        this.trainingsList = res.data.analytics || [];
+                    } catch (err) {
+                        console.error("Помилка завантаження:", err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                isPast(dateString) {
+                    return new Date(dateString) < new Date();
+                },
+                formatDate(dateStr) {
+                    if (!dateStr) return '—';
+                    return new Date(dateStr).toLocaleString('uk-UA', {
+                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                },
+
+                // МЕТОДИ ДЛЯ СТВОРЕННЯ ТРЕНУВАННЯ
+                openModal() {
+                    this.formMessage = '';
+                    this.formError = false;
+                    if (!this.bsModal) {
+                        this.bsModal = new bootstrap.Modal(document.getElementById('createTrainingModal'));
+                    }
+                    this.bsModal.show();
+                },
+                async submitTraining() {
+                    this.submitting = true;
+                    this.formMessage = '';
+                    try {
+                        const payload = {
+                            title: this.form.title,
+                            training_type_id: parseInt(this.form.training_type_id, 10),
+                            scheduled_at: this.form.scheduled_at + ":00Z", 
+                            planned_duration: parseInt(this.form.planned_duration, 10),
+                            description: this.form.description
+                        };
+                        await axios.post('/api/v1/coach/training', payload);
+                        
+                        this.formError = false;
+                        this.formMessage = 'Тренування успішно створено!';
+                        this.form = { title: '', training_type_id: '', scheduled_at: '', planned_duration: null, description: '' };
+                        this.fetchTrainings();
+
+                        setTimeout(() => { this.bsModal.hide(); this.formMessage = ''; }, 1500);
+                    } catch (err) {
+                        this.formError = true;
+                        this.formMessage = 'Помилка: ' + (err.response?.data?.error || 'Сервер не відповідає');
+                    } finally {
+                        this.submitting = false;
+                    }
+                },
+
+                // МЕТОДИ ДЛЯ ВНЕСЕННЯ РЕЗУЛЬТАТУ
+                openLogModal(item) {
+                    this.logMessage = '';
+                    this.logError = false;
+                    
+                    this.logForm.training_id = item.id;
+                    this.logForm.title = item.title;
+                    this.logForm.actual_duration = item.actual_duration || item.planned_duration;
+                    this.logForm.comment = item.comment || '';
+                    this.logForm.status = 'Done';
+
+                    if (!this.bsLogModal) {
+                        this.bsLogModal = new bootstrap.Modal(document.getElementById('logTrainingModal'));
+                    }
+                    this.bsLogModal.show();
+                },
+                async submitLog() {
+                    this.submittingLog = true;
+                    this.logMessage = '';
+                    
+                    try {
+                        // Цей payload збігається з твоєю структурою UpdateTrainingLogRequest
+                        const payload = {
+                            status: this.logForm.status,
+                            actual_duration: parseInt(this.logForm.actual_duration, 10),
+                            comment: this.logForm.comment
+                        };
+
+                        await axios.put('/api/v1/coach/training/logs/' + this.logForm.training_id, payload);
+                        
+                        this.logError = false;
+                        this.logMessage = 'Результати успішно оновлено!';
+                        this.fetchTrainings(); 
+
+                        setTimeout(() => { this.bsLogModal.hide(); this.logMessage = ''; }, 1500);
+                    } catch (err) {
+                        this.logError = true;
+                        this.logMessage = 'Помилка: ' + (err.response?.data?.error || 'Сервер не відповідає');
+                    } finally {
+                        this.submittingLog = false;
+                    }
+                }
+            },
+            mounted() {
+                this.fetchTrainings();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -49,75 +49,111 @@ func (cr *CoachRepo) CreateTraining(userID uint, training models.CreateTrainingR
 func (cr *CoachRepo) GetTrainingsAnalytics(userID uint, startDate, endDate string) ([]models.TrainingsAnalyticsItem, error) {
 	result := []models.TrainingsAnalyticsItem{}
 	query := cr.db.Table("trainings").
-        Select("trainings.title, trainings.scheduled_at, trainings.planned_duration, trainings_logs.actual_duration, COALESCE(trainings_logs.comment, trainings.description) AS comment").
-        Joins("LEFT JOIN trainings_logs ON trainings.id = trainings_logs.training_id").
-        Where("trainings.coach_id = ?", userID)
+		Select(`
+			trainings.id, 
+			trainings.title, 
+			trainings.scheduled_at, 
+			trainings.planned_duration, 
+			trainings_logs.actual_duration, 
+			COALESCE(trainings_logs.comment, trainings.description) AS comment
+		`).
+		Joins("LEFT JOIN trainings_logs ON trainings.id = trainings_logs.training_id").
+		Where("trainings.coach_id = ?", userID)
 
 	if len(startDate) != 0 && len(endDate) != 0 {
 		query = query.Where("scheduled_at BETWEEN ? AND ?", startDate, endDate)
 	}
 
-	query = query.Scan(&result)
+	err := query.Order("trainings.scheduled_at DESC").Scan(&result).Error
 
-	if query.Error != nil {
-		return nil, fmt.Errorf("error selecting values: %w", query.Error)
+	if err != nil {
+		return nil, fmt.Errorf("error selecting values: %w", err)
 	}
 
 	return result, nil
 }
 
 func (cr *CoachRepo) AddMember(athleteID uint) error {
-	query := cr.db.Table("users").Where("id = ?", athleteID).Update("is_active", true)
-
-	if query.Error != nil {
-		return fmt.Errorf("error updating values: %w", query.Error)
-	}
-
-	if query.RowsAffected == 0 {
-		return fmt.Errorf("athlete with id %d not found", athleteID)
-	}
-	return nil
+	return cr.updateUserStatus(athleteID, true)
 }
 
 func (cr *CoachRepo) DeleteMember(athleteID uint) error {
-	query := cr.db.Table("users").Where("id = ?", athleteID).Update("is_active", false)
+	return cr.updateUserStatus(athleteID, false)
+}
 
-	if query.Error != nil {
-		return fmt.Errorf("error updating values: %w", query.Error)
+func (cr *CoachRepo) updateUserStatus(athleteID uint, active bool) error {
+	res := cr.db.Table("users").Where("id = ?", athleteID).Update("is_active", active)
+	if res.Error != nil {
+		return res.Error
 	}
-
-	if query.RowsAffected == 0 {
-		return fmt.Errorf("athlete with id %d not found", athleteID)
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("user %d not found", athleteID)
 	}
 	return nil
 }
 
-func (cr *CoachRepo) UpdateTraining(trainingID uint, req models.UpdateTrainingLogRequest) error {
-	data := map[string]interface{}{
+func (cr *CoachRepo) UpdateTraining(trainingID uint, req models.UpdateLogTrainingRequest) error {
+	athleteID := uint(2)
+
+	var count int64
+	cr.db.Table("trainings_logs").
+		Where("training_id = ? AND athlete_id = ?", trainingID, athleteID).
+		Count(&count)
+
+	if count > 0 {
+		data := map[string]interface{}{
+			"status":          req.Status,
+			"actual_duration": req.ActualDuration,
+			"comment":         req.Comment,
+		}
+
+		err := cr.db.Table("trainings_logs").
+			Where("training_id = ? AND athlete_id = ?", trainingID, athleteID).
+			Updates(data).Error
+
+		if err != nil {
+			return fmt.Errorf("error updating training log: %w", err)
+		}
+		return nil
+	}
+
+	newData := map[string]interface{}{
+		"training_id":     trainingID,
+		"athlete_id":      athleteID,
 		"status":          req.Status,
 		"actual_duration": req.ActualDuration,
 		"comment":         req.Comment,
 	}
 
-	query := cr.db.Table("trainings_logs").Where("id = ?", trainingID).Updates(data)
-
-	if query.Error != nil {
-		return fmt.Errorf("error updating values: %w", query.Error)
+	err := cr.db.Table("trainings_logs").Create(newData).Error
+	if err != nil {
+		return fmt.Errorf("error creating training log: %w", err)
 	}
 
-	if query.RowsAffected == 0 {
-		return fmt.Errorf("training log with id %d not found", trainingID)
-	}
 	return nil
 }
 
 func (cr *CoachRepo) GetTeamMembers() ([]models.User, error) {
 	var athletes []models.User
-	
-	err := cr.db.Table("users").Where("role = ?", "athlete").Find(&athletes).Error
+
+	err := cr.db.Table("users").
+		Where("role = ?", "athlete").
+		Find(&athletes).
+		Error
+
 	if err != nil {
 		return nil, fmt.Errorf("error fetching team members: %w", err)
 	}
-	
+
 	return athletes, nil
+}
+
+func (cr *CoachRepo) GetAllTeamTrainings(coachID uint) ([]models.TrainingScheduleItem, error) {
+	var result []models.TrainingScheduleItem
+	err := cr.db.Table("trainings").
+		Select("title, scheduled_at, planned_duration").
+		Where("coach_id = ?", coachID).
+		Order("scheduled_at DESC").
+		Find(&result).Error
+	return result, err
 }

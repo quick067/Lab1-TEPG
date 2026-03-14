@@ -21,6 +21,5 @@ func main(){
 	}
 }
 
-
-//TODO::
-//Add view
+//docker run --name training-container --env-file .env training-app
+//docker run --name training-container --env-file .env -p 8080:8080 training-app

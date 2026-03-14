@@ -18,38 +18,44 @@ func NewAthleteRepo(db *gorm.DB) *AthleteRepo {
 }
 
 func (ar *AthleteRepo) GetScheduleItems(userID uint, startDate, endDate string) ([]models.TrainingScheduleItem, error) {
-	result := []models.TrainingScheduleItem{}
+	var result []models.TrainingScheduleItem
 	query := ar.db.Table("trainings").
-	Select("trainings.title, trainings.scheduled_at, trainings.planned_duration, trainings_logs.status, trainings_logs.actual_duration, trainings_logs.training_comment").
-	Joins("JOIN trainings_logs ON trainings.id=trainings_logs.training_id").
-	Where("trainings_logs.athlete_id = ?", userID)
+		Select("title, scheduled_at, planned_duration").
+		Where("coach_id = ?", 1)
 
-	if len(startDate) != 0 && len(endDate) != 0 {
-		query = query.Where("trainings.scheduled_at BETWEEN ? AND ?", startDate, endDate)
+	if startDate != "" && endDate != "" {
+		query = query.Where("scheduled_at BETWEEN ? AND ?", startDate, endDate)
 	}
 
-	query = query.Scan(&result)
-
-	if query.Error != nil {
-		return nil, fmt.Errorf("error selecting values: %w", query.Error)
+	err := query.Find(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("error selecting schedule: %w", err)
 	}
 
 	return result, nil
 }
 
-func (ar *AthleteRepo) GetProgressItem(userID uint) ([]models.TrainingProgressItem, error){
-	result := []models.TrainingProgressItem{}
+func (ar *AthleteRepo) GetProgressItem(userID uint) ([]models.TrainingProgressItem, error) {
+	var result []models.TrainingProgressItem
+
 	query := ar.db.Table("trainings").
-	Select("status, actual_duration, scheduled_at, name").
-	Joins("JOIN trainings_logs ON trainings.id = trainings_logs.training_id").
-	Joins("JOIN training_types ON trainings.task_type_id = training_types.id").
-	Where("trainings_logs.athlete_id = ?", userID)
+		Select(`
+			trainings_logs.status, 
+			trainings_logs.actual_duration, 
+			trainings_logs.comment, 
+			trainings.scheduled_at, 
+			training_types.name
+		`).
+		Joins("INNER JOIN trainings_logs ON trainings.id = trainings_logs.training_id").
+		Joins("INNER JOIN training_types ON trainings.task_type_id = training_types.id").
+		Where("trainings_logs.athlete_id = ?", userID)
 
-	query = query.Scan(&result)
+	query = query.Order("trainings.scheduled_at DESC")
 
-	if query.Error != nil {
-		return nil, fmt.Errorf("error selecting values: %w", query.Error)
+	if err := query.Find(&result).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch athlete progress: %w", err)
 	}
+
 	return result, nil
 }
 

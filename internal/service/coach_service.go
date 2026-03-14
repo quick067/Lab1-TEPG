@@ -10,8 +10,9 @@ type CoachRepo interface{
 	CreateTraining(userID uint, training models.CreateTrainingRequest) error
 	AddMember(athleteID uint) error
 	DeleteMember(athleteID uint) error 
-	UpdateTraining(trainingID uint, req models.UpdateTrainingLogRequest) error
+	UpdateTraining(trainingID uint, req models.UpdateLogTrainingRequest) error
 	GetTeamMembers() ([]models.User, error)
+	GetAllTeamTrainings(coachID uint) ([]models.TrainingScheduleItem, error)
 }
 
 type CoachService struct {
@@ -41,15 +42,15 @@ func (cs *CoachService) CreateTraining (userID uint, training models.CreateTrain
 	return nil
 }
 
-func (cs *CoachService) UpdateTraining(trainingID uint, req models.UpdateTrainingLogRequest) error {
+func (cs *CoachService) UpdateTraining(trainingID uint, req models.UpdateLogTrainingRequest) error {
 	err := cs.repo.UpdateTraining(trainingID, req)
 	if err != nil {
 		return fmt.Errorf("error updating values: %w", err)
 	}
 	return nil
 }
-func (cs *CoachService) DeleteTeamMember(athleteID uint) error {
-	err := cs.repo.DeleteMember(athleteID)
+func (cs *CoachService) DeleteTeamMember(trainingID uint) error {
+	err := cs.repo.DeleteMember(trainingID)
 	if err != nil {
 		return fmt.Errorf("error deleting member: %w", err)
 	}
@@ -70,4 +71,8 @@ func (cs *CoachService) GetTeamMembers() ([]models.User, error) {
 		return nil, fmt.Errorf("failed to get team members from repo: %w", err)
 	}
 	return athletes, nil
+}
+
+func (cs *CoachService) GetAllTeamTrainings(coachID uint) ([]models.TrainingScheduleItem, error) {
+	return cs.repo.GetAllTeamTrainings(coachID)
 }

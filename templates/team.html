@@ -5,55 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .Title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .transition-base { transition: 0.3s; }
+        .avatar-circle { 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: linear-gradient(135deg, #0d6efd, #0dcaf0); 
+            color: white; 
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="text-primary">{{ .Title }} 👥</h1>
-            <a href="/web/coach/dashboard" class="btn btn-outline-secondary">⬅ Повернутися до розкладу</a>
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <h1 class="text-primary fw-bold mb-0">{{ .Title }} 👥</h1>
+                <p class="text-muted mt-1">Керування складом ваших спортсменів</p>
+            </div>
+            <a href="/web/coach/dashboard" class="btn btn-outline-secondary fw-bold shadow-sm transition-base">
+                ⬅ Повернутися до розкладу
+            </a>
         </div>
 
         {{ if .Error }}
-        <div class="alert alert-danger">{{ .Error }}</div>
+        <div class="alert alert-danger shadow-sm border-0">{{ .Error }}</div>
         {{ end }}
 
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white">Список спортсменів</div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h5 class="mb-0 fw-bold text-dark">📋 Список спортсменів</h5>
+            </div>
             <div class="card-body p-0">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th class="ps-4">ID</th>
-                            <th>Ім'я та Прізвище</th>
-                            <th>Email</th>
-                            <th>Статус</th>
-                            <th class="text-end pe-4">Дії</th>
+                            <th class="ps-4 text-muted">ID</th>
+                            <th class="text-muted">Спортсмен</th>
+                            <th class="text-muted">Контакти</th>
+                            <th class="text-muted">Статус</th>
+                            <th class="text-end pe-4 text-muted">Дії</th>
                         </tr>
                     </thead>
                     <tbody>
                         {{ range .Athletes }}
                         <tr>
-                            <td class="ps-4 fw-bold">{{ .ID }}</td>
-                            <td>{{ .FirstName }} {{ .LastName }}</td>
-                            <td><a href="mailto:{{ .Email }}">{{ .Email }}</a></td>
+                            <td class="ps-4 fw-bold text-secondary">#{{ .ID }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle me-3 shadow-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                                            <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="fw-bold text-dark">{{ .FirstName }} {{ .LastName }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="mailto:{{ .Email }}" class="text-decoration-none text-primary">{{ .Email }}</a>
+                            </td>
                             <td>
                                 {{ if .IsActive }}
-                                    <span class="badge bg-success">Активний</span>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">Активний</span>
                                 {{ else }}
-                                    <span class="badge bg-danger">Заблокований</span>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">Заблокований</span>
                                 {{ end }}
                             </td>
                             <td class="text-end pe-4">
                                 {{ if .IsActive }}
-                                    <button onclick="changeStatus({{ .ID }}, 'block')" class="btn btn-sm btn-outline-danger">Заблокувати</button>
+                                    <button onclick="changeStatus({{ .ID }}, 'block')" class="btn btn-sm btn-outline-danger fw-bold px-3 transition-base">
+                                        Заблокувати
+                                    </button>
                                 {{ else }}
-                                    <button onclick="changeStatus({{ .ID }}, 'activate')" class="btn btn-sm btn-outline-success">Активувати</button>
+                                    <button onclick="changeStatus({{ .ID }}, 'activate')" class="btn btn-sm btn-outline-success fw-bold px-3 transition-base">
+                                        Активувати
+                                    </button>
                                 {{ end }}
                             </td>
                         </tr>
                         {{ else }}
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-4">У вас поки немає атлетів</td>
+                            <td colspan="5" class="text-center text-muted py-5">
+                                <div class="fs-4 mb-2">🤷‍♂️</div>
+                                У вас поки немає атлетів.
+                            </td>
                         </tr>
                         {{ end }}
                     </tbody>
